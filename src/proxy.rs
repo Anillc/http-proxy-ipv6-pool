@@ -104,23 +104,12 @@ fn get_rand_ipv6_socket_addr(ipv6: [u8; 16], prefix_len: u8) -> SocketAddr {
 }
 
 fn get_rand_ipv6(ipv6: [u8; 16], prefix_len: u8) -> IpAddr {
-    let mut ipv6 = ipv6;
     let mut rng = rand::thread_rng();
 
-    let net_part = (prefix_len + 7) / 8;
-    let las = prefix_len & 8;
-
-    let mut cur = 15;
-    while cur > net_part - 1 {
-        ipv6[cur as usize] = rng.gen();
-        cur -= 1;
-    }
-
-    if las > 0 {
-        let mix: u8 = rng.gen();
-        ipv6[cur as usize] = ipv6[cur as usize] + mix >> las;
-    }
-
-    let ipv6 = Ipv6Addr::from(ipv6);
-    IpAddr::V6(ipv6)
+    let left = vec![0; (prefix_len / 8) as usize];
+    let right = (0..(128 - prefix_len) / 8)
+        .map(|_| rng.gen())
+        .collect::<Vec<u8>>();
+    let random: [u8; 16] = [left, right].concat().try_into().unwrap();
+    IpAddr::V6(Ipv6Addr::from(u128::from_be_bytes(ipv6) | u128::from_be_bytes(random)))
 }
